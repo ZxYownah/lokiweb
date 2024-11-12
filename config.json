@@ -1,0 +1,22 @@
+{
+    "loggers": {
+        "FileLogger": {
+            "active": true
+        },
+        "StdoutLogger": {
+            "active": true
+        }
+    },
+    "servers": [
+        {
+            "handler": "ApacheServer",
+            "mode": "http",
+            "port": 8080,
+            "domain": "localhost",
+            "timeout": 10,
+            "doc_root": "~/sesameit2/lokiweb/www/www.palmero-industrie.fr"
+        }
+    ],
+    "user": "blaise",
+    "group": "honeyhttpd"
+}
