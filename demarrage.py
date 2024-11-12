@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import argparse
+import threading
 from queue import Queue
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
@@ -10,14 +11,15 @@ from termcolor import colored
 
 VERSION = "v0.5.3"
 BANNER = """
-        _______  _        _______                   __________________ _______  ______  
-|\     /|(  ___  )( (    /|(  ____ \|\     /||\     /|\__   __/\__   __/(  ____ )(  __  \ 
+       _______  _        _______                   __________________ _______  ______ 
+|\     /|(  ___  )( (    /|(  ____ \|\     /||\     /|\__   __/\__   __/(  ____ )(  __  \
 | )   ( || (   ) ||  \  ( || (    \/( \   / )| )   ( |   ) (      ) (   | (    )|| (  \  )
 | (___) || |   | ||   \ | || (__     \ (_) / | (___) |   | |      | |   | (____)|| |   ) |
 |  ___  || |   | || (\ \) ||  __)     \   /  |  ___  |   | |      | |   |  _____)| |   | |
 | (   ) || |   | || | \   || (         ) (   | (   ) |   | |      | |   | (      | |   ) |
 | )   ( || (___) || )  \  || (____/\   | |   | )   ( |   | |      | |   | )      | (__/  )
-|/     \|(_______)|/    )_)(_______/   \_/   |/     \|   )_(      )_(   |/       (______/ 
+|/     \|(_______)|/    )_)(_______/   \_/   |/     \|   )_(      )_(   |/       (______/
+
 
 """
 
@@ -51,6 +53,7 @@ class ServerManager:
         self.config = config
         self.servers = []
         self.loggers = []
+        self.doc_root = os.path.expanduser(config['servers'][0]['doc_root'])  # Expand ~ to home directory
         self.setup_loggers()
 
     def setup_loggers(self):
@@ -67,7 +70,8 @@ class ServerManager:
             print(colored(f"Starting server on port {port}", "green"))
             server.timeout = server_config.get('timeout', 10)
             self.servers.append(server)
-            server_thread = ThreadingMixIn(target=server.serve_forever)
+            # Utilisation de `threading.Thread` pour démarrer le serveur
+            server_thread = threading.Thread(target=server.serve_forever)
             server_thread.start()
 
     def send_error(self, handler, code, headers, message):
@@ -82,7 +86,17 @@ class ServerManager:
         for header, value in headers:
             handler.send_header(header, value)
         handler.end_headers()
+        # Écrire directement les données si elles sont déjà au format bytes
+        handler.wfile.write(data)
+
+    """ OLD
+    def send_success_response(self, handler, data, headers):
+        handler.send_response(200)
+        for header, value in headers:
+            handler.send_header(header, value)
+        handler.end_headers()
         handler.wfile.write(data.encode('utf-8'))
+    """
 
     def on_request(self, handler):
         if not handler.path.startswith("/"):
@@ -90,9 +104,20 @@ class ServerManager:
         return None, None
 
     def on_GET(self, path, headers):
+        # Map root path '/' to 'index.html' by default
         if path == "/":
-            return 200, [("Content-Type", "text/html")], "<html><body>Hello, World!</body></html>"
+            path = "/index.html"
+
+        # Construct full file path
+        full_path = os.path.join(self.doc_root, path.lstrip("/"))
+
+        # Serve the file if it exists
+        if os.path.isfile(full_path):
+            with open(full_path, "rb") as file:
+                data = file.read()
+            return 200, [("Content-Type", "text/html")], data
         else:
+            # File not found
             return 404, [("Content-Type", "text/html")], "<html><body>Page Not Found</body></html>"
 
     def on_POST(self, path, headers, post_data):

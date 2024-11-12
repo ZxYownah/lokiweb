@@ -14,9 +14,9 @@
             "port": 8080,
             "domain": "localhost",
             "timeout": 10,
-            "doc_root": "~/sesameit2/lokiweb/www/www.palmero-industrie.fr"
+            "doc_root": "/home/talla/yownah/lokiweb/www/www.palmero-industrie.fr"
         }
     ],
-    "user": "blaise",
+    "user": "talla",
     "group": "honeyhttpd"
 }
